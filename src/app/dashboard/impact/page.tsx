@@ -14,6 +14,9 @@ import {
   Lightbulb,
   RotateCcw,
   FileCode2,
+  Copy,
+  Check,
+  Sparkles,
 } from "lucide-react";
 import { useActiveRepo } from "@/components/shell";
 import { TabButton, EmptyState, LoadingDots, Modal } from "@/components/ui";
@@ -64,6 +67,119 @@ const CONFIDENCE_COLOR: Record<string, string> = {
   low: "text-rose-300/90",
 };
 
+function generateAiPrompt(
+  result: ImpactResult,
+  symbol: string,
+  newValue?: string,
+  mode: "fix" | "assess" = "fix"
+): string {
+  const targetNode = result.nodes.find((n) => n.depth === 0);
+  const directNodes = result.nodes.filter((n) => n.depth === 1);
+  const transitiveNodes = result.nodes.filter((n) => n.depth > 1);
+  const targetFile = targetNode?.file || (result.files && result.files[0]) || "target definition file";
+  const newSym = newValue?.trim();
+
+  if (mode === "assess") {
+    return `# 🛡️ Blast Radius & Architectural Risk Assessment: \`${symbol}\`
+
+You are a senior software architect and code safety engineer. I am evaluating a refactor/modification to \`${symbol}\` in this repository.
+
+## 🎯 Target Specification
+- **Symbol**: \`${symbol}\`
+${newSym ? `- **Proposed Replacement**: \`${newSym}\`\n` : ""}- **Primary Definition**: \`${targetFile}\`
+
+---
+
+## 📊 AST-Verified Blast Radius
+- **Affected Files**: ${result.files?.length || 0}
+- **Impacted API Routes**: ${result.apis?.length || 0} (${result.apis?.length ? result.apis.join(", ") : "None"})
+- **Impacted UI Components**: ${result.components?.length || 0} (${result.components?.length ? result.components.join(", ") : "None"})
+- **Impacted Test Suites**: ${result.tests?.length || 0} (${result.tests?.length ? result.tests.join(", ") : "None"})
+- **Direct Call Sites (Hop 1)**: ${directNodes.length} symbols
+- **Transitive Call Sites (Hop > 1)**: ${transitiveNodes.length} symbols
+
+---
+
+## ⚠️ Potential Breakages & Downstream Hazards
+1. **Direct Call Failures**: Any caller not updated will fail at runtime (\`AttributeError\`, \`TypeError\`, or missing export).
+2. **Silent Contract Break**: Downstream endpoints relying on \`${symbol}\` may emit altered JSON payloads, breaking clients without compiler warnings.
+3. **Frontend Invalidation**: UI components referencing \`${symbol}\` will evaluate to \`undefined\`, producing blank views or broken states.
+4. **Test Failures**: ${(result.tests || []).length} test suites directly verify this symbol or its immediate dependencies.
+
+---
+
+## 📂 Impacted Entities & Relationships
+${result.nodes.slice(0, 30).map((n) => `- **\`${n.name}\`** (${n.type}) in \`${n.file}\` [${n.depth === 0 ? "Target" : n.depth === 1 ? "Direct caller" : `Hop ${n.depth}`}, via ${n.via}, confidence: ${n.confidence}]`).join("\n")}
+${result.nodes.length > 30 ? `\n_...and ${result.nodes.length - 30} more symbols across the repository._\n` : ""}
+
+---
+
+## 📋 Required Output From AI
+Please review the evidence above and output:
+1. Critical edge-cases or runtime failure modes across the affected files.
+2. Step-by-step phased migration plan (e.g. deprecation shim, dual-read database phase).
+3. Exact verification checklist to guarantee zero regressions.`;
+  }
+
+  // mode === "fix" (Remediation / Coordinated Refactoring)
+  return `# 🚀 Coordinated Blast-Radius Refactoring Task: \`${symbol}\`
+
+You are an autonomous AI software engineer. Execute a coordinated multi-file refactoring for \`${symbol}\`${newSym ? ` to \`${newSym}\`` : ""} across this repository.
+
+> **CRITICAL**: Do NOT just edit the definition. The AST dependency graph has identified **${result.files?.length || 0} files** and **${result.nodes.length} call sites** that will break if not updated together. Follow the blast radius blueprint below.
+
+---
+
+## 1. Change Specification
+- **Symbol to Refactor**: \`${symbol}\`
+${newSym ? `- **New Name / Contract**: \`${newSym}\`\n` : `- **Goal**: Update definition and all call sites cleanly without broken references.\n`}- **Originating File**: \`${targetFile}\`
+
+---
+
+## 2. Exact Blast Radius Blueprint (Must Be Updated Together)
+
+### 🔴 Direct Callers (Update First - Hop 1)
+${directNodes.length > 0 
+  ? directNodes.map(n => `- \`${n.name}\` (${n.type}) in \`${n.file}\` — Calls via \`${n.via}\``).join("\n") 
+  : "- No direct callers detected."}
+
+### 🌐 Impacted APIs & Controllers
+${(result.apis || []).length > 0 
+  ? (result.apis || []).map(a => `- API Route / Handler: \`${a}\``).join("\n") 
+  : "- No public API endpoints detected in blast radius."}
+
+### 🖥️ Impacted Frontend UI Components
+${(result.components || []).length > 0 
+  ? (result.components || []).map(c => `- Component: \`${c}\``).join("\n") 
+  : "- No frontend components directly affected."}
+
+### 🧪 Test Suites to Update & Verify
+${(result.tests || []).length > 0 
+  ? (result.tests || []).map(t => `- Test File: \`${t}\``).join("\n") 
+  : "- Run the project's main test suite."}
+
+---
+
+## 3. Step-by-Step AI Execution Instructions
+1. **Update Definition**:
+   - In \`${targetFile}\`, update \`${symbol}\`${newSym ? ` to \`${newSym}\`` : ""}. Update exports, types, or docstrings.
+2. **Update Direct Call Sites**:
+   - Navigate to each direct caller in Section 2 above and update references to match the new definition.
+3. **Verify API Contract Stability**:
+   - Check serializers/controllers in ${(result.apis || []).slice(0, 3).join(", ") || "API endpoints"}. Ensure external clients or JSON schemas are not unexpectedly broken.
+4. **Update Frontend UI**:
+   - Check component data bindings in ${(result.components || []).slice(0, 3).join(", ") || "UI files"} so runtime rendering succeeds with no \`undefined\` access errors.
+5. **Update and Run Test Suites**:
+   - Update assertions and fixtures in ${(result.tests || []).slice(0, 3).join(", ") || "test files"}. Run tests to verify zero regressions.
+
+---
+
+## 4. Guardrails & Strict Constraints
+- Do NOT leave stale references to \`${symbol}\` in any of the affected files.
+- Do NOT make unnecessary changes to unrelated files outside this blast radius.
+- Ensure the codebase builds cleanly and all imports resolve with zero errors.`;
+}
+
 export default function ImpactPage() {
   const repoId = useActiveRepo();
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -80,6 +196,9 @@ export default function ImpactPage() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showPromptModal, setShowPromptModal] = useState(false);
+  const [promptMode, setPromptMode] = useState<"fix" | "assess">("fix");
+  const [copiedPrompt, setCopiedPrompt] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
@@ -246,6 +365,24 @@ export default function ImpactPage() {
     });
   }, [allNodes, activeFilter, searchQuery]);
 
+  const handleCopyPrompt = useCallback(
+    (mode: "fix" | "assess" = promptMode) => {
+      if (!result) return;
+      const text = generateAiPrompt(result, symbol, newValue, mode);
+      navigator.clipboard.writeText(text);
+      setCopiedPrompt(true);
+      setStatusType("success");
+      setStatusMessage("AI prompt copied to clipboard! Ready to paste into Cursor / Claude.");
+      setTimeout(() => setCopiedPrompt(false), 2500);
+    },
+    [result, symbol, newValue, promptMode]
+  );
+
+  const generatedPrompt = useMemo(() => {
+    if (!result) return "";
+    return generateAiPrompt(result, symbol, newValue, promptMode);
+  }, [result, symbol, newValue, promptMode]);
+
   return (
     <div className="space-y-3">
       {/* Slim header: title left, history + summary right */}
@@ -264,16 +401,35 @@ export default function ImpactPage() {
           )}
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           {result && (
-            <button
-              type="button"
-              onClick={() => setShowSummaryModal(true)}
-              className="rounded-full p-1.5 text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-lime-300"
-              title="Plain-English change summary"
-            >
-              <Lightbulb className="h-3.5 w-3.5" />
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => handleCopyPrompt("fix")}
+                className="inline-flex items-center gap-1.5 rounded-full border border-lime-400/30 bg-lime-400/10 px-3 py-1 font-mono text-[11px] font-bold text-lime-300 transition-all hover:bg-lime-400/20 active:scale-95"
+                title="Copy ready-to-use prompt for Cursor/Claude"
+              >
+                {copiedPrompt ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                <span>{copiedPrompt ? "Copied!" : "Copy AI Prompt"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPromptModal(true)}
+                className="rounded-full p-1.5 text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-lime-300"
+                title="View full AI prompt with blast radius"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-lime-300" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowSummaryModal(true)}
+                className="rounded-full p-1.5 text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-lime-300"
+                title="Plain-English change summary"
+              >
+                <Lightbulb className="h-3.5 w-3.5" />
+              </button>
+            </>
           )}
           <button
             type="button"
@@ -545,6 +701,48 @@ export default function ImpactPage() {
             </div>
           </div>
 
+          {/* AI Remediation Quick-Prompt Banner */}
+          <div className="border-b border-white/[0.05] bg-gradient-to-r from-lime-400/[0.06] via-transparent to-sky-400/[0.04] p-3">
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-2.5">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-lime-400/30 bg-lime-400/10 text-lime-300 shadow-[0_0_12px_-3px_rgba(190,242,100,0.4)]">
+                  <Sparkles className="h-3.5 w-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-bold text-slate-100">
+                      Coordinated AI Fix Prompt Ready
+                    </p>
+                    <span className="rounded bg-lime-400/15 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-lime-300">
+                      Zero-Hallucination
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-slate-400">
+                    Feeds all {(result.files || []).length} affected files & {allNodes.length} callers directly to Cursor, Claude, or Copilot to execute the refactor without breaking downstream contracts.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleCopyPrompt("fix")}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-lime-300 px-3.5 py-1.5 text-xs font-bold text-[#0a0f0a] transition-all hover:bg-lime-200 active:scale-95 shadow-sm"
+                >
+                  {copiedPrompt ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                  <span>{copiedPrompt ? "Copied to Clipboard!" : "Copy AI Fix Prompt"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPromptModal(true)}
+                  className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:bg-white/10 hover:text-slate-100"
+                >
+                  <span>Preview & Details</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Compact result rows */}
           <div className="max-h-[560px] divide-y divide-white/[0.04] overflow-y-auto scroll-thin">
             {filteredList.map((item, idx) => {
@@ -695,6 +893,93 @@ export default function ImpactPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* AI Remediation Prompt Modal */}
+      {result && (
+        <Modal
+          open={showPromptModal}
+          onClose={() => setShowPromptModal(false)}
+          title={
+            <span className="flex items-center gap-2 text-slate-100">
+              <Sparkles className="h-4 w-4 text-lime-300" />
+              AI Remediation & Refactoring Prompt
+            </span>
+          }
+          subtitle={`Pre-computed AST context for ${result.symbol} — paste into Cursor, Claude, Copilot or ChatGPT`}
+          maxWidth="max-w-3xl"
+        >
+          <div className="space-y-3">
+            {/* Top Bar: Prompt Mode Tabs & Action Buttons */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.06] pb-2.5">
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setPromptMode("fix")}
+                  className={cx(
+                    "rounded-full px-3 py-1 text-xs font-bold transition-all",
+                    promptMode === "fix"
+                      ? "bg-lime-400/15 text-lime-300 border border-lime-400/30"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                  )}
+                >
+                  🚀 Multi-File Fix Prompt
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPromptMode("assess")}
+                  className={cx(
+                    "rounded-full px-3 py-1 text-xs font-bold transition-all",
+                    promptMode === "assess"
+                      ? "bg-sky-400/15 text-sky-300 border border-sky-400/30"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                  )}
+                >
+                  🛡️ Architectural Risk Assessment
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleCopyPrompt(promptMode)}
+                className="inline-flex items-center gap-1.5 rounded-full bg-lime-300 px-3.5 py-1.5 text-xs font-bold text-[#0a0f0a] transition-all hover:bg-lime-200 active:scale-95 shadow-sm"
+              >
+                {copiedPrompt ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                <span>{copiedPrompt ? "Copied to Clipboard!" : "Copy Prompt"}</span>
+              </button>
+            </div>
+
+            {/* Why This Works (Educational Callout) */}
+            <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-2.5 text-[11.5px] text-slate-300 leading-relaxed">
+              <span className="font-semibold text-lime-300">💡 Why give this to your AI Agent?</span> Normal AI agents (Cursor, Claude, Copilot) only see 1–2 open files and miss breaking changes across the rest of the repo. This prompt feeds them the <strong>complete AST call graph</strong> with all {(result.files || []).length} affected files and downstream contracts so they can execute the entire refactor with zero hallucinations.
+            </div>
+
+            {/* Prompt Code Block Container */}
+            <div className="relative rounded-lg border border-white/[0.1] bg-[#070b12] p-3.5">
+              <div className="absolute right-3 top-3 flex items-center gap-1.5 font-mono text-[10px] text-slate-500">
+                <span>markdown</span>
+                <span>•</span>
+                <span>{generatedPrompt.split("\n").length} lines</span>
+              </div>
+              <pre className="max-h-[380px] overflow-y-auto whitespace-pre-wrap font-mono text-[11.5px] leading-relaxed text-slate-200 scroll-thin select-all">
+                {generatedPrompt}
+              </pre>
+            </div>
+
+            {/* Footer tips */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 font-mono text-[11px] text-slate-500">
+              <span>Optimized for Cursor Composer, Claude Code, GitHub Copilot & ChatGPT.</span>
+              <button
+                type="button"
+                onClick={() => handleCopyPrompt(promptMode)}
+                className="text-lime-300 hover:underline flex items-center gap-1"
+              >
+                <Copy className="h-3 w-3" />
+                <span>Quick Copy</span>
+              </button>
             </div>
           </div>
         </Modal>
