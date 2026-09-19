@@ -36,6 +36,16 @@ def create_app():
     app.register_blueprint(seed_bp)
     app.register_blueprint(github_bp)
 
+    @app.route("/")
+    def index():
+        return jsonify({
+            "name": "ReGit API",
+            "status": "healthy",
+            "version": "1.0.0",
+            "message": "ReGit Flask Backend is live and running.",
+            "health": "/api/health"
+        }), 200
+
     @app.errorhandler(404)
     def not_found(e):
         return jsonify({"error": "Resource not found"}), 404
