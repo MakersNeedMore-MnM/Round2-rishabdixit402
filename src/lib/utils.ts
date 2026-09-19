@@ -24,26 +24,26 @@ export function shortSha(): string {
 export function severityColor(sev: string): string {
   switch (sev) {
     case "high":
-      return "bg-rose-500/15 text-rose-300 border-rose-500/30";
+      return "bg-rose-500/10 text-rose-300/90 border-rose-500/25";
     case "medium":
-      return "bg-amber-500/15 text-amber-300 border-amber-500/30";
+      return "bg-amber-500/10 text-amber-300/90 border-amber-500/25";
     case "low":
-      return "bg-sky-500/15 text-sky-300 border-sky-500/30";
+      return "bg-white/[0.04] text-slate-300 border-white/[0.08]";
     case "passed":
-      return "bg-lime-500/15 text-lime-300 border-lime-500/30";
+      return "bg-emerald-400/10 text-emerald-300/90 border-emerald-400/20";
     default:
-      return "bg-slate-500/15 text-slate-300 border-slate-500/30";
+      return "bg-white/[0.03] text-slate-400 border-white/[0.06]";
   }
 }
 
 export function confidenceColor(c: string): string {
   switch (c) {
     case "high":
-      return "bg-lime-400/15 text-lime-300 border-lime-400/30";
+      return "bg-white/[0.04] text-slate-300 border-white/[0.08]";
     case "medium":
-      return "bg-sky-400/15 text-sky-300 border-sky-400/30";
+      return "bg-amber-400/10 text-amber-300/90 border-amber-400/20";
     default:
-      return "bg-amber-400/15 text-amber-300 border-amber-400/30";
+      return "bg-rose-400/10 text-rose-300/90 border-rose-400/20";
   }
 }
 

@@ -14,9 +14,9 @@ export function Pill({
   className?: string;
 }) {
   const tones: Record<string, string> = {
-    default: "bg-white/5 text-slate-300 border-white/10",
+    default: "bg-white/[0.04] text-slate-300 border-white/[0.08]",
     lime: "bg-lime-400/10 text-lime-300 border-lime-400/20",
-    blue: "bg-[#58a6ff]/10 text-[#79b8ff] border-[#58a6ff]/20",
+    blue: "bg-sky-400/10 text-sky-300/90 border-sky-400/20",
     rose: "bg-rose-500/10 text-rose-300 border-rose-500/20",
     amber: "bg-amber-400/10 text-amber-300 border-amber-400/20",
   };
@@ -74,8 +74,8 @@ export function TabButton({
       className={cx(
         "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
         active
-          ? "bg-lime-400/15 text-lime-300 border border-lime-400/30"
-          : "border border-white/[0.08] bg-white/[0.02] text-slate-400 hover:text-slate-200 hover:bg-white/5",
+          ? "bg-lime-400/10 text-lime-300 border border-lime-400/25 shadow-[0_0_12px_-4px_rgba(190,242,100,0.2)]"
+          : "border border-white/[0.06] bg-white/[0.02] text-slate-400 hover:text-slate-200 hover:border-white/[0.12] hover:bg-white/[0.04]",
         className
       )}
     >
@@ -84,7 +84,7 @@ export function TabButton({
         <span
           className={cx(
             "rounded px-1 text-[10px] font-bold font-mono",
-            active ? "bg-lime-400/20 text-lime-200" : "bg-white/10 text-slate-400"
+            active ? "bg-lime-400/15 text-lime-200" : "bg-white/[0.06] text-slate-400"
           )}
         >
           {badge}
@@ -108,12 +108,12 @@ export function StatBox({
   className?: string;
 }) {
   const accent: Record<string, string> = {
-    default: "text-slate-200",
+    default: "text-slate-100",
     lime: "text-lime-300",
-    blue: "text-[#79b8ff]",
+    blue: "text-slate-100",
     rose: "text-rose-400",
     amber: "text-amber-300",
-    violet: "text-violet-300",
+    violet: "text-slate-100",
   };
 
   return (
