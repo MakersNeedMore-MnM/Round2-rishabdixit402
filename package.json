@@ -8,6 +8,8 @@
     "build": "next build",
     "dev:all": "npm run dev",
     "start": "next start",
+    "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
