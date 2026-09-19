@@ -2,6 +2,8 @@
 
 Pre-commit code intelligence and change blast-radius analysis engine.
 
+Website: https://re-git.vercel.app
+
 ---
 
 ## 1. System Architecture
