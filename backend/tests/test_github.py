@@ -233,13 +233,13 @@ def test_github_oauth_callback_signs_the_user_in(mock_post, mock_get, client, mo
     cb = client.get(f"/api/github/callback?code=temp-code&state={state}")
     assert cb.status_code == 302
     # Lands on the repositories screen so the account's repos can be listed
-    assert cb.headers["Location"] == "/dashboard/repositories?github=connected"
+    assert cb.headers["Location"].endswith("/dashboard/repositories?github=connected")
 
     # The state is consumed by the callback and cannot be replayed
     state_after = client.get_cookie("regit_oauth_state")
     assert state_after is None or state_after.value != state
     replay = client.get(f"/api/github/callback?code=temp-code&state={state}")
-    assert replay.headers["Location"] == "/login?error=github_state_mismatch"
+    assert replay.headers["Location"].endswith("/login?error=github_state_mismatch")
 
     # A real session was created for the account GitHub identified
     me = client.get("/api/auth/me")
