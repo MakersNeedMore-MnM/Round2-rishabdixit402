@@ -54,11 +54,13 @@ def local_explain(finding: Dict[str, Any]) -> str:
     suggestion = evidence.get("suggestion") or "Review the evidence, apply the minimal fix, and re-run ReGit impact analysis to confirm the signal clears."
     symbol = finding.get("symbol") or rule_id
 
+    evidence_block = f"Key evidence:\n{lines_formatted}\n" if lines_formatted else ""
+
     return (
         f"## What happened\n{description}\n\n"
         f"## Why it matters\n{why}\n\n"
         f"## Blast radius\nAffected: {files}\n"
-        f"{('Key evidence:\n' + lines_formatted + chr(10)) if lines_formatted else ''}"
+        f"{evidence_block}"
         f"## Fix (suggested)\n{suggestion}\n\n"
         f"## Review checklist\n"
         f"- [ ] Confirm every file above is updated or intentionally excluded\n"
