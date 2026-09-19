@@ -1,3 +1,4 @@
+import os
 import psycopg2
 from psycopg2.extras import RealDictCursor, execute_values
 from psycopg2.pool import ThreadedConnectionPool
@@ -5,11 +6,19 @@ from contextlib import contextmanager
 from backend.app.config import Config
 
 _pool = None
+_pool_pid = None
 
 def init_db():
-    global _pool
-    if _pool is None:
+    global _pool, _pool_pid
+    current_pid = os.getpid()
+    if _pool is None or _pool_pid != current_pid:
+        if _pool is not None:
+            try:
+                _pool.closeall()
+            except Exception:
+                pass
         _pool = ThreadedConnectionPool(1, 20, Config.DATABASE_URL)
+        _pool_pid = current_pid
         # Ensure schema migrations for GitHub integration
         try:
             with get_db_cursor(commit=True) as cur:
@@ -20,8 +29,9 @@ def init_db():
             print(f"[DB Init] Schema migration notice: {e}")
 
 def get_db():
-    global _pool
-    if _pool is None:
+    global _pool, _pool_pid
+    current_pid = os.getpid()
+    if _pool is None or _pool_pid != current_pid:
         init_db()
     try:
         conn = _pool.getconn()
@@ -32,13 +42,15 @@ def get_db():
     except Exception:
         return psycopg2.connect(Config.DATABASE_URL)
 
-def release_db(conn):
+def release_db(conn, close=False):
     if conn is None:
         return
-    if _pool is not None:
+    global _pool, _pool_pid
+    current_pid = os.getpid()
+    if _pool is not None and _pool_pid == current_pid:
         try:
             if conn in _pool._used.values() or conn in getattr(_pool, "_pool", []):
-                _pool.putconn(conn, close=bool(conn.closed))
+                _pool.putconn(conn, close=close or bool(conn.closed))
                 return
         except Exception:
             pass
@@ -50,6 +62,7 @@ def release_db(conn):
 @contextmanager
 def get_db_cursor(commit=False):
     conn = get_db()
+    is_bad = False
     try:
         cur = conn.cursor(cursor_factory=RealDictCursor)
         yield cur
@@ -57,6 +70,13 @@ def get_db_cursor(commit=False):
             conn.commit()
         else:
             conn.rollback()
+    except psycopg2.OperationalError:
+        is_bad = True
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        raise
     except Exception:
         try:
             conn.rollback()
@@ -68,25 +88,40 @@ def get_db_cursor(commit=False):
             cur.close()
         except Exception:
             pass
-        release_db(conn)
+        release_db(conn, close=is_bad)
 
 def query_all(sql, params=None):
-    with get_db_cursor() as cur:
-        cur.execute(sql, params or ())
-        return cur.fetchall()
+    try:
+        with get_db_cursor() as cur:
+            cur.execute(sql, params or ())
+            return cur.fetchall()
+    except psycopg2.OperationalError:
+        with get_db_cursor() as cur:
+            cur.execute(sql, params or ())
+            return cur.fetchall()
 
 def query_one(sql, params=None):
-    with get_db_cursor() as cur:
-        cur.execute(sql, params or ())
-        return cur.fetchone()
+    try:
+        with get_db_cursor() as cur:
+            cur.execute(sql, params or ())
+            return cur.fetchone()
+    except psycopg2.OperationalError:
+        with get_db_cursor() as cur:
+            cur.execute(sql, params or ())
+            return cur.fetchone()
 
 def execute(sql, params=None, commit=True):
-    with get_db_cursor(commit=commit) as cur:
-        cur.execute(sql, params or ())
-        try:
-            return cur.fetchall()
-        except Exception:
-            return None
+    def _run():
+        with get_db_cursor(commit=commit) as cur:
+            cur.execute(sql, params or ())
+            try:
+                return cur.fetchall()
+            except Exception:
+                return None
+    try:
+        return _run()
+    except psycopg2.OperationalError:
+        return _run()
 
 def execute_many(sql, rows):
     """
