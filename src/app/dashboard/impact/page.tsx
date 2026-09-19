@@ -80,104 +80,104 @@ function generateAiPrompt(
   const newSym = newValue?.trim();
 
   if (mode === "assess") {
-    return `# 🛡️ Blast Radius & Architectural Risk Assessment: \`${symbol}\`
+    return `# Architecture Risk Assessment: \`${symbol}\`
 
-You are a senior software architect and code safety engineer. I am evaluating a refactor/modification to \`${symbol}\` in this repository.
+You are a senior software architect and code safety engineer. Review the planned refactor of \`${symbol}\` in this repository.
 
-## 🎯 Target Specification
-- **Symbol**: \`${symbol}\`
-${newSym ? `- **Proposed Replacement**: \`${newSym}\`\n` : ""}- **Primary Definition**: \`${targetFile}\`
-
----
-
-## 📊 AST-Verified Blast Radius
-- **Affected Files**: ${result.files?.length || 0}
-- **Impacted API Routes**: ${result.apis?.length || 0} (${result.apis?.length ? result.apis.join(", ") : "None"})
-- **Impacted UI Components**: ${result.components?.length || 0} (${result.components?.length ? result.components.join(", ") : "None"})
-- **Impacted Test Suites**: ${result.tests?.length || 0} (${result.tests?.length ? result.tests.join(", ") : "None"})
-- **Direct Call Sites (Hop 1)**: ${directNodes.length} symbols
-- **Transitive Call Sites (Hop > 1)**: ${transitiveNodes.length} symbols
+## Target Specification
+- Symbol: \`${symbol}\`
+${newSym ? `- Proposed Replacement: \`${newSym}\`\n` : ""}- Primary Definition: \`${targetFile}\`
 
 ---
 
-## ⚠️ Potential Breakages & Downstream Hazards
-1. **Direct Call Failures**: Any caller not updated will fail at runtime (\`AttributeError\`, \`TypeError\`, or missing export).
-2. **Silent Contract Break**: Downstream endpoints relying on \`${symbol}\` may emit altered JSON payloads, breaking clients without compiler warnings.
-3. **Frontend Invalidation**: UI components referencing \`${symbol}\` will evaluate to \`undefined\`, producing blank views or broken states.
-4. **Test Failures**: ${(result.tests || []).length} test suites directly verify this symbol or its immediate dependencies.
+## AST-Verified Blast Radius
+- Affected Files: ${result.files?.length || 0}
+- Impacted API Routes: ${result.apis?.length || 0} (${result.apis?.length ? result.apis.join(", ") : "None"})
+- Impacted UI Components: ${result.components?.length || 0} (${result.components?.length ? result.components.join(", ") : "None"})
+- Impacted Test Suites: ${result.tests?.length || 0} (${result.tests?.length ? result.tests.join(", ") : "None"})
+- Direct Call Sites (Depth 1): ${directNodes.length} symbols
+- Transitive Call Sites (Depth > 1): ${transitiveNodes.length} symbols
 
 ---
 
-## 📂 Impacted Entities & Relationships
-${result.nodes.slice(0, 30).map((n) => `- **\`${n.name}\`** (${n.type}) in \`${n.file}\` [${n.depth === 0 ? "Target" : n.depth === 1 ? "Direct caller" : `Hop ${n.depth}`}, via ${n.via}, confidence: ${n.confidence}]`).join("\n")}
-${result.nodes.length > 30 ? `\n_...and ${result.nodes.length - 30} more symbols across the repository._\n` : ""}
+## Potential Hazards
+1. Direct Call Failures: Un-migrated call sites will raise AttributeError, TypeError, or import failures at runtime.
+2. Silent Contract Breaks: Downstream endpoints relying on \`${symbol}\` will alter JSON payloads, breaking API clients.
+3. Frontend Invalidation: UI components referencing \`${symbol}\` will evaluate to undefined, resulting in blank states.
+4. Test Failures: ${(result.tests || []).length} test suite(s) verify this symbol or its immediate dependencies.
 
 ---
 
-## 📋 Required Output From AI
-Please review the evidence above and output:
+## Impacted Entities
+${result.nodes.slice(0, 30).map((n) => `- \`${n.name}\` (${n.type}) in \`${n.file}\` [${n.depth === 0 ? "Target" : n.depth === 1 ? "Direct caller" : `Hop ${n.depth}`}, via ${n.via}, confidence: ${n.confidence}]`).join("\n")}
+${result.nodes.length > 30 ? `\n...and ${result.nodes.length - 30} more symbols across the repository.\n` : ""}
+
+---
+
+## Required Output
+Provide:
 1. Critical edge-cases or runtime failure modes across the affected files.
-2. Step-by-step phased migration plan (e.g. deprecation shim, dual-read database phase).
-3. Exact verification checklist to guarantee zero regressions.`;
+2. Recommended phased migration plan (e.g. deprecation wrapper, dual-read phase).
+3. Verification checklist to guarantee zero regressions.`;
   }
 
   // mode === "fix" (Remediation / Coordinated Refactoring)
-  return `# 🚀 Coordinated Blast-Radius Refactoring Task: \`${symbol}\`
+  return `# Refactoring Blueprint: \`${symbol}\`
 
 You are an autonomous AI software engineer. Execute a coordinated multi-file refactoring for \`${symbol}\`${newSym ? ` to \`${newSym}\`` : ""} across this repository.
 
-> **CRITICAL**: Do NOT just edit the definition. The AST dependency graph has identified **${result.files?.length || 0} files** and **${result.nodes.length} call sites** that will break if not updated together. Follow the blast radius blueprint below.
+IMPORTANT: Do not only modify the definition file. The AST dependency graph identified ${result.files?.length || 0} files and ${result.nodes.length} call sites that will break if not updated together. Follow the blast radius blueprint below.
 
 ---
 
 ## 1. Change Specification
-- **Symbol to Refactor**: \`${symbol}\`
-${newSym ? `- **New Name / Contract**: \`${newSym}\`\n` : `- **Goal**: Update definition and all call sites cleanly without broken references.\n`}- **Originating File**: \`${targetFile}\`
+- Symbol to Refactor: \`${symbol}\`
+${newSym ? `- New Name / Contract: \`${newSym}\`\n` : `- Goal: Update definition and all consuming call sites without breaking references.\n`}- Originating File: \`${targetFile}\`
 
 ---
 
-## 2. Exact Blast Radius Blueprint (Must Be Updated Together)
+## 2. Blast Radius Blueprint (Must Update Together)
 
-### 🔴 Direct Callers (Update First - Hop 1)
+### A. Direct Callers (Update First - Depth 1)
 ${directNodes.length > 0 
-  ? directNodes.map(n => `- \`${n.name}\` (${n.type}) in \`${n.file}\` — Calls via \`${n.via}\``).join("\n") 
+  ? directNodes.map(n => `- \`${n.name}\` (${n.type}) in \`${n.file}\` (via \`${n.via}\`)`).join("\n") 
   : "- No direct callers detected."}
 
-### 🌐 Impacted APIs & Controllers
+### B. Impacted APIs & Endpoints
 ${(result.apis || []).length > 0 
-  ? (result.apis || []).map(a => `- API Route / Handler: \`${a}\``).join("\n") 
-  : "- No public API endpoints detected in blast radius."}
+  ? (result.apis || []).map(a => `- API Handler: \`${a}\``).join("\n") 
+  : "- No public endpoints detected in blast radius."}
 
-### 🖥️ Impacted Frontend UI Components
+### C. Impacted UI Components
 ${(result.components || []).length > 0 
   ? (result.components || []).map(c => `- Component: \`${c}\``).join("\n") 
   : "- No frontend components directly affected."}
 
-### 🧪 Test Suites to Update & Verify
+### D. Test Suites to Update & Verify
 ${(result.tests || []).length > 0 
   ? (result.tests || []).map(t => `- Test File: \`${t}\``).join("\n") 
-  : "- Run the project's main test suite."}
+  : "- Run the project's primary test suite."}
 
 ---
 
 ## 3. Step-by-Step AI Execution Instructions
-1. **Update Definition**:
+1. Update Definition:
    - In \`${targetFile}\`, update \`${symbol}\`${newSym ? ` to \`${newSym}\`` : ""}. Update exports, types, or docstrings.
-2. **Update Direct Call Sites**:
-   - Navigate to each direct caller in Section 2 above and update references to match the new definition.
-3. **Verify API Contract Stability**:
-   - Check serializers/controllers in ${(result.apis || []).slice(0, 3).join(", ") || "API endpoints"}. Ensure external clients or JSON schemas are not unexpectedly broken.
-4. **Update Frontend UI**:
-   - Check component data bindings in ${(result.components || []).slice(0, 3).join(", ") || "UI files"} so runtime rendering succeeds with no \`undefined\` access errors.
-5. **Update and Run Test Suites**:
-   - Update assertions and fixtures in ${(result.tests || []).slice(0, 3).join(", ") || "test files"}. Run tests to verify zero regressions.
+2. Update Direct Call Sites:
+   - Navigate to each direct caller in Section 2A and update call references.
+3. Verify API Contract Stability:
+   - Check serializers/controllers in ${(result.apis || []).slice(0, 3).join(", ") || "API endpoints"} so external JSON schemas remain valid.
+4. Update Frontend UI:
+   - Check component data access in ${(result.components || []).slice(0, 3).join(", ") || "UI files"} so runtime rendering succeeds without undefined errors.
+5. Update and Run Test Suites:
+   - Update fixtures and assertions in ${(result.tests || []).slice(0, 3).join(", ") || "test files"}. Confirm clean test run.
 
 ---
 
-## 4. Guardrails & Strict Constraints
-- Do NOT leave stale references to \`${symbol}\` in any of the affected files.
-- Do NOT make unnecessary changes to unrelated files outside this blast radius.
-- Ensure the codebase builds cleanly and all imports resolve with zero errors.`;
+## 4. Constraints
+- Do not leave stale references to \`${symbol}\` in any of the affected files.
+- Do not make changes to unrelated files outside this blast radius.
+- Ensure the codebase builds cleanly with zero errors.`;
 }
 
 export default function ImpactPage() {
@@ -701,45 +701,33 @@ export default function ImpactPage() {
             </div>
           </div>
 
-          {/* AI Remediation Quick-Prompt Banner */}
-          <div className="border-b border-white/[0.05] bg-gradient-to-r from-lime-400/[0.06] via-transparent to-sky-400/[0.04] p-3">
-            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-start gap-2.5">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-lime-400/30 bg-lime-400/10 text-lime-300 shadow-[0_0_12px_-3px_rgba(190,242,100,0.4)]">
-                  <Sparkles className="h-3.5 w-3.5" />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs font-bold text-slate-100">
-                      Coordinated AI Fix Prompt Ready
-                    </p>
-                    <span className="rounded bg-lime-400/15 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-lime-300">
-                      Zero-Hallucination
-                    </span>
-                  </div>
-                  <p className="mt-0.5 text-[11px] text-slate-400">
-                    Feeds all {(result.files || []).length} affected files & {allNodes.length} callers directly to Cursor, Claude, or Copilot to execute the refactor without breaking downstream contracts.
-                  </p>
-                </div>
-              </div>
+          {/* Streamlined AI Prompt Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.05] bg-white/[0.015] px-3 py-2">
+            <div className="flex items-center gap-2 text-xs">
+              <Sparkles className="h-3.5 w-3.5 shrink-0 text-lime-300" />
+              <span className="font-semibold text-slate-200">AI Prompt Ready</span>
+              <span className="text-slate-600">·</span>
+              <span className="font-mono text-[11px] text-slate-400">
+                {(result.files || []).length} files & {allNodes.length} callers mapped for Cursor / Claude
+              </span>
+            </div>
 
-              <div className="flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleCopyPrompt("fix")}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-lime-300 px-3.5 py-1.5 text-xs font-bold text-[#0a0f0a] transition-all hover:bg-lime-200 active:scale-95 shadow-sm"
-                >
-                  {copiedPrompt ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                  <span>{copiedPrompt ? "Copied to Clipboard!" : "Copy AI Fix Prompt"}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowPromptModal(true)}
-                  className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:bg-white/10 hover:text-slate-100"
-                >
-                  <span>Preview & Details</span>
-                </button>
-              </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleCopyPrompt("fix")}
+                className="inline-flex items-center gap-1.5 rounded-full bg-lime-300 px-3 py-1 text-xs font-bold text-[#0a0f0a] transition-all hover:bg-lime-200 active:scale-95"
+              >
+                {copiedPrompt ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                <span>{copiedPrompt ? "Copied" : "Copy prompt"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPromptModal(true)}
+                className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-xs font-medium text-slate-300 transition-colors hover:bg-white/10 hover:text-slate-100"
+              >
+                Preview
+              </button>
             </div>
           </div>
 
@@ -906,82 +894,66 @@ export default function ImpactPage() {
           title={
             <span className="flex items-center gap-2 text-slate-100">
               <Sparkles className="h-4 w-4 text-lime-300" />
-              AI Remediation & Refactoring Prompt
+              AI Prompt · {result.symbol}
             </span>
           }
-          subtitle={`Pre-computed AST context for ${result.symbol} — paste into Cursor, Claude, Copilot or ChatGPT`}
+          subtitle={`${(result.files || []).length} files · ${allNodes.length} call sites mapped via AST`}
           maxWidth="max-w-3xl"
         >
-          <div className="space-y-3">
-            {/* Top Bar: Prompt Mode Tabs & Action Buttons */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.06] pb-2.5">
-              <div className="flex items-center gap-1.5">
+          <div className="flex flex-col overflow-hidden rounded-lg border border-white/[0.08] bg-[#070b12]">
+            {/* Integrated Toolbar */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.06] bg-[#090e17] px-3 py-2">
+              <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => setPromptMode("fix")}
                   className={cx(
-                    "rounded-full px-3 py-1 text-xs font-bold transition-all",
+                    "rounded-md px-2.5 py-1 text-xs font-semibold transition-colors",
                     promptMode === "fix"
                       ? "bg-lime-400/15 text-lime-300 border border-lime-400/30"
                       : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
                   )}
                 >
-                  🚀 Multi-File Fix Prompt
+                  Multi-file fix
                 </button>
                 <button
                   type="button"
                   onClick={() => setPromptMode("assess")}
                   className={cx(
-                    "rounded-full px-3 py-1 text-xs font-bold transition-all",
+                    "rounded-md px-2.5 py-1 text-xs font-semibold transition-colors",
                     promptMode === "assess"
                       ? "bg-sky-400/15 text-sky-300 border border-sky-400/30"
                       : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
                   )}
                 >
-                  🛡️ Architectural Risk Assessment
+                  Risk assessment
                 </button>
               </div>
 
-              <button
-                type="button"
-                onClick={() => handleCopyPrompt(promptMode)}
-                className="inline-flex items-center gap-1.5 rounded-full bg-lime-300 px-3.5 py-1.5 text-xs font-bold text-[#0a0f0a] transition-all hover:bg-lime-200 active:scale-95 shadow-sm"
-              >
-                {copiedPrompt ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                <span>{copiedPrompt ? "Copied to Clipboard!" : "Copy Prompt"}</span>
-              </button>
-            </div>
-
-            {/* Why This Works (Educational Callout) */}
-            <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-2.5 text-[11.5px] text-slate-300 leading-relaxed">
-              <span className="font-semibold text-lime-300">💡 Why give this to your AI Agent?</span> Normal AI agents (Cursor, Claude, Copilot) only see 1–2 open files and miss breaking changes across the rest of the repo. This prompt feeds them the <strong>complete AST call graph</strong> with all {(result.files || []).length} affected files and downstream contracts so they can execute the entire refactor with zero hallucinations.
-            </div>
-
-            {/* Prompt Code Block Container */}
-            <div className="relative rounded-lg border border-white/[0.1] bg-[#070b12] p-3.5">
-              <div className="absolute right-3 top-3 flex items-center gap-1.5 font-mono text-[10px] text-slate-500">
-                <span>markdown</span>
-                <span>•</span>
-                <span>{generatedPrompt.split("\n").length} lines</span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[10.5px] text-slate-500">
+                  {generatedPrompt.split("\n").length} lines
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleCopyPrompt(promptMode)}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-lime-300 px-3 py-1 text-xs font-bold text-[#0a0f0a] transition-all hover:bg-lime-200 active:scale-95"
+                >
+                  {copiedPrompt ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                  <span>{copiedPrompt ? "Copied" : "Copy prompt"}</span>
+                </button>
               </div>
-              <pre className="max-h-[380px] overflow-y-auto whitespace-pre-wrap font-mono text-[11.5px] leading-relaxed text-slate-200 scroll-thin select-all">
-                {generatedPrompt}
-              </pre>
             </div>
 
-            {/* Footer tips */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 font-mono text-[11px] text-slate-500">
-              <span>Optimized for Cursor Composer, Claude Code, GitHub Copilot & ChatGPT.</span>
-              <button
-                type="button"
-                onClick={() => handleCopyPrompt(promptMode)}
-                className="text-lime-300 hover:underline flex items-center gap-1"
-              >
-                <Copy className="h-3 w-3" />
-                <span>Quick Copy</span>
-              </button>
-            </div>
+            {/* Single Compact Code Surface */}
+            <pre className="max-h-[460px] overflow-y-auto p-3.5 font-mono text-[11.5px] leading-relaxed text-slate-200 scroll-thin select-all whitespace-pre-wrap">
+              {generatedPrompt}
+            </pre>
           </div>
+
+          <p className="mt-1.5 text-right font-mono text-[10.5px] text-slate-500">
+            Paste directly into Cursor Composer, Claude Code, Copilot, or ChatGPT.
+          </p>
         </Modal>
       )}
 
