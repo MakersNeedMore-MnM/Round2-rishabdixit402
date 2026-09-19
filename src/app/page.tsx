@@ -31,7 +31,9 @@ export default async function LandingPage() {
 
       {/* ---------------------------------------------------------------- Nav */}
       <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
-        <Logo />
+        <Link href="/" className="transition-opacity hover:opacity-95">
+          <Logo size={32} />
+        </Link>
         <div className="flex items-center gap-2">
           {user ? (
             <Link

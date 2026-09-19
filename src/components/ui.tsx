@@ -330,40 +330,151 @@ export function EmptyState({
   );
 }
 
-export function Logo({ size = 28 }: { size?: number }) {
+export function ReGitIcon({
+  size = 32,
+  className = "",
+}: {
+  size?: number;
+  className?: string;
+}) {
   return (
-    <div className="flex items-center gap-2">
-      <div
-        className="ring-conic animate-spin-slow rounded-lg p-[1.5px]"
-        style={{ width: size, height: size }}
-      >
-        <div className="flex h-full w-full items-center justify-center rounded-lg bg-[#070b12] text-[12px] font-black text-lime-200">
-          R
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 40 40"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={cx("shrink-0 transition-all duration-300 group-hover:scale-105", className)}
+    >
+      <defs>
+        {/* Core dynamic neon gradient */}
+        <linearGradient id="regit-neon-grad" x1="4" y1="4" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#bef264" />
+          <stop offset="50%" stopColor="#4ade80" />
+          <stop offset="100%" stopColor="#38bdf8" />
+        </linearGradient>
+
+        {/* Glow border gradient */}
+        <linearGradient id="regit-border-grad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#bef264" stopOpacity="0.65" />
+          <stop offset="50%" stopColor="#38bdf8" stopOpacity="0.25" />
+          <stop offset="100%" stopColor="#a855f7" stopOpacity="0.45" />
+        </linearGradient>
+
+        {/* Ambient radial glow */}
+        <radialGradient id="regit-core-glow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#bef264" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="#bef264" stopOpacity="0" />
+        </radialGradient>
+
+        {/* Shadow filter for nodes and paths */}
+        <filter id="regit-neon-glow" x="-10%" y="-10%" width="120%" height="120%" filterUnits="userSpaceOnUse">
+          <feDropShadow dx="0" dy="1" stdDeviation="1.5" floodColor="#bef264" floodOpacity="0.4" />
+        </filter>
+      </defs>
+
+      {/* Futuristic Shield/Hex Badge Container */}
+      <rect
+        x="2"
+        y="2"
+        width="36"
+        height="36"
+        rx="10"
+        fill="#070c16"
+        stroke="url(#regit-border-grad)"
+        strokeWidth="1.5"
+      />
+
+      {/* Internal ambient radial glow */}
+      <circle cx="20" cy="20" r="14" fill="url(#regit-core-glow)" />
+
+      {/* Glowing ReGit "R" Branch Paths */}
+      <g filter="url(#regit-neon-glow)">
+        {/* Main Git Commit Trunk (Vertical Line) */}
+        <path
+          d="M13.5 11V29"
+          stroke="url(#regit-neon-grad)"
+          strokeWidth="2.75"
+          strokeLinecap="round"
+        />
+
+        {/* Loop of the R (Branch merge arc) */}
+        <path
+          d="M13.5 11.5H21C24.3137 11.5 27 13.9624 27 17C27 20.0376 24.3137 22.5 21 22.5H13.5"
+          stroke="url(#regit-neon-grad)"
+          strokeWidth="2.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+
+        {/* Diagonal Blast-Radius Feature Branch (Leg of R) */}
+        <path
+          d="M20 21.5L26.5 29"
+          stroke="url(#regit-neon-grad)"
+          strokeWidth="2.75"
+          strokeLinecap="round"
+        />
+
+        {/* Git Nodes (Commits on the graph) */}
+        {/* Node 1: Root commit (top-left) */}
+        <circle cx="13.5" cy="11.5" r="2.75" fill="#070c16" stroke="#bef264" strokeWidth="2" />
+        <circle cx="13.5" cy="11.5" r="1" fill="#bef264" />
+
+        {/* Node 2: Trunk commit (bottom-left) */}
+        <circle cx="13.5" cy="29" r="2.75" fill="#070c16" stroke="#38bdf8" strokeWidth="2" />
+        <circle cx="13.5" cy="29" r="1" fill="#38bdf8" />
+
+        {/* Node 3: Merge/Loop commit */}
+        <circle cx="27" cy="17" r="2.2" fill="#bef264" />
+
+        {/* Node 4: Active Feature Branch tip */}
+        <circle cx="26.5" cy="29" r="3" fill="#070c16" stroke="#bef264" strokeWidth="2" />
+        <circle cx="26.5" cy="29" r="1.2" fill="#bef264" />
+      </g>
+    </svg>
+  );
+}
+
+export function Logo({
+  size = 32,
+  showBadge = true,
+  className = "",
+}: {
+  size?: number;
+  showBadge?: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={cx("group flex items-center gap-2.5 select-none", className)}>
+      <ReGitIcon size={size} />
+      <div className="flex flex-col justify-center leading-none">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[15px] font-extrabold tracking-tight text-white group-hover:text-slate-100 transition-colors">
+            Re<span className="bg-gradient-to-r from-lime-300 via-emerald-400 to-[#58a6ff] bg-clip-text text-transparent">Git</span>
+          </span>
+          {showBadge && (
+            <span className="rounded-[4px] border border-lime-400/30 bg-lime-400/10 px-1.5 py-0.5 text-[8.5px] font-extrabold uppercase tracking-wider text-lime-300 shadow-[0_0_12px_rgba(190,242,100,0.15)]">
+              AI
+            </span>
+          )}
         </div>
-      </div>
-      <div className="leading-none">
-        <p className="text-[14px] font-extrabold tracking-tight">
-          Re<span className="text-lime-300">Git</span>
-        </p>
-        <p className="mt-0.5 text-[8.5px] font-medium uppercase tracking-[0.16em] text-slate-500">
+        <span className="mt-0.5 text-[8.5px] font-semibold uppercase tracking-[0.18em] text-slate-400 group-hover:text-slate-300 transition-colors">
           Safety Layer
-        </p>
+        </span>
       </div>
     </div>
   );
 }
 
-/**
- * Static circular logo mark for the auth screens: just the R in a glass
- * disc - no rotation, no orbit decoration.
- */
 export function LogoMark({ size = 64 }: { size?: number }) {
   return (
-    <div
-      className="flex items-center justify-center rounded-full border border-white/10 bg-[#0a0f18] text-[18px] font-black text-lime-200 shadow-[0_0_40px_-14px_rgba(190,242,100,.4)]"
-      style={{ width: size, height: size }}
-    >
-      R
+    <div className="relative flex items-center justify-center select-none group">
+      {/* Outer ambient blur glow */}
+      <div
+        className="absolute -inset-3 rounded-3xl bg-gradient-to-tr from-lime-400/25 via-emerald-500/10 to-[#38bdf8]/25 blur-xl opacity-80 transition-opacity group-hover:opacity-100"
+        style={{ width: size + 24, height: size + 24 }}
+      />
+      <ReGitIcon size={size} className="relative z-10" />
     </div>
   );
 }

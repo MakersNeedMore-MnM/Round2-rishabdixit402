@@ -108,7 +108,9 @@ export function DashboardShell({
     <div className="flex h-full flex-col border-r border-white/[0.07] bg-[#090e17] text-slate-300">
       {/* Brand header */}
       <div className="flex h-13 items-center justify-between border-b border-white/[0.06] px-4">
-        <Logo size={26} />
+        <Link href="/dashboard" className="transition-opacity hover:opacity-90">
+          <Logo size={28} />
+        </Link>
         <span className="rounded bg-lime-400/10 px-1.5 py-0.5 text-[9.5px] font-bold tracking-wide text-lime-300">
           v1.0
         </span>
