@@ -20,13 +20,32 @@ def init_db():
             print(f"[DB Init] Schema migration notice: {e}")
 
 def get_db():
+    global _pool
     if _pool is None:
         init_db()
-    return _pool.getconn()
+    try:
+        conn = _pool.getconn()
+        if conn.closed:
+            _pool.putconn(conn, close=True)
+            conn = _pool.getconn()
+        return conn
+    except Exception:
+        return psycopg2.connect(Config.DATABASE_URL)
 
 def release_db(conn):
-    if _pool is not None and conn is not None:
-        _pool.putconn(conn)
+    if conn is None:
+        return
+    if _pool is not None:
+        try:
+            if conn in _pool._used.values() or conn in getattr(_pool, "_pool", []):
+                _pool.putconn(conn, close=bool(conn.closed))
+                return
+        except Exception:
+            pass
+    try:
+        conn.close()
+    except Exception:
+        pass
 
 @contextmanager
 def get_db_cursor(commit=False):
@@ -36,11 +55,19 @@ def get_db_cursor(commit=False):
         yield cur
         if commit:
             conn.commit()
+        else:
+            conn.rollback()
     except Exception:
-        conn.rollback()
+        try:
+            conn.rollback()
+        except Exception:
+            pass
         raise
     finally:
-        cur.close()
+        try:
+            cur.close()
+        except Exception:
+            pass
         release_db(conn)
 
 def query_all(sql, params=None):

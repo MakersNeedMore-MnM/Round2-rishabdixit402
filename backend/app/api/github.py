@@ -310,25 +310,14 @@ def get_github_redirect_uri():
 
 
 def _oauth_failure(reason):
-    """
-    Send the browser back to /login with a machine-readable code.
-
-    Internal error details are logged server side and never echoed into the
-    URL, so nothing about the failure leaks to the client.
-    """
-    resp = make_response(redirect(f"/login?error={reason}"))
+    public_app_url = (os.getenv("PUBLIC_APP_URL") or Config.PUBLIC_APP_URL or "").strip().rstrip("/")
+    target = f"{public_app_url}/login?error={reason}" if public_app_url else f"/login?error={reason}"
+    resp = make_response(redirect(target))
     resp.delete_cookie(OAUTH_STATE_COOKIE, path="/")
     return resp
 
 
 def _upsert_github_user(gh_user, access_token, email):
-    """
-    Find or create the local account for a GitHub identity and link the OAuth
-    token, so repo import / commit keep working for the signed-in user.
-
-    Matching order: an account already linked to this GitHub login, then an
-    account using the same *verified* email.
-    """
     login = (gh_user.get("login") or "").strip()
     if not login:
         return None
@@ -404,74 +393,84 @@ def github_oauth_login():
 @github_bp.route("/api/auth/github/callback", methods=["GET"])
 @github_bp.route("/github/callback", methods=["GET"])
 def github_oauth_callback():
-    if request.args.get("error"):
-        return _oauth_failure("github_denied")
-
-    code = request.args.get("code")
-    state = request.args.get("state")
-    expected_state = request.cookies.get(OAUTH_STATE_COOKIE)
-
-    # CSRF: the state we issued must come back unchanged (constant-time), and
-    # the state cookie is consumed below so it cannot be replayed.
-    if not code:
-        return _oauth_failure("github_failed")
-    if not expected_state or not state or not secrets.compare_digest(expected_state, state):
-        return _oauth_failure("github_state_mismatch")
-
-    client_id = get_github_client_id()
-    client_secret = get_github_client_secret()
-    if not client_id or not client_secret:
-        return _oauth_failure("github_not_configured")
-
-    # Exchange the temporary code for an access token
     try:
-        token_resp = requests.post(
-            "https://github.com/login/oauth/access_token",
-            headers={"Accept": "application/json"},
-            data={
-                "client_id": client_id,
-                "client_secret": client_secret,
-                "code": code,
-                "redirect_uri": get_github_redirect_uri(),
-            },
-            timeout=15
-        )
-        data = token_resp.json() if token_resp.status_code == 200 else {}
-    except (requests.RequestException, ValueError) as exc:
-        print(f"[GitHub OAuth] Token exchange failed: {exc}")
-        return _oauth_failure("github_failed")
+        if request.args.get("error"):
+            return _oauth_failure("github_denied")
 
-    access_token = data.get("access_token")
-    if not access_token:
-        print(f"[GitHub OAuth] No access token returned: {data.get('error')}")
-        return _oauth_failure("github_failed")
+        code = request.args.get("code")
+        state = request.args.get("state")
+        expected_state = request.cookies.get(OAUTH_STATE_COOKIE)
 
-    validation = validate_github_token(access_token)
-    if not validation.get("ok"):
-        print(f"[GitHub OAuth] Token validation failed: {validation.get('error')}")
-        return _oauth_failure("github_failed")
+        # CSRF: the state we issued must come back unchanged (constant-time), and
+        # the state cookie is consumed below so it cannot be replayed.
+        if not code:
+            return _oauth_failure("github_failed")
+        if not expected_state or not state or not secrets.compare_digest(expected_state, state):
+            return _oauth_failure("github_state_mismatch")
 
-    gh_user = validation["user"]
+        client_id = get_github_client_id()
+        client_secret = get_github_client_secret()
+        if not client_id or not client_secret:
+            return _oauth_failure("github_not_configured")
 
-    # GitHub only exposes a public email, so ask for the verified primary one,
-    # then fall back to the stable noreply address to keep the account unique.
-    email = (gh_user.get("email") or "").strip().lower()
-    if not email:
-        email = (get_primary_email(access_token) or "").strip().lower()
-    if not email or "@" not in email:
-        email = f"{gh_user.get('login')}@users.noreply.github.com"
+        # Exchange the temporary code for an access token
+        try:
+            token_resp = requests.post(
+                "https://github.com/login/oauth/access_token",
+                headers={"Accept": "application/json"},
+                data={
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "code": code,
+                    "redirect_uri": get_github_redirect_uri(),
+                },
+                timeout=15
+            )
+            data = token_resp.json() if token_resp.status_code == 200 else {}
+        except (requests.RequestException, ValueError) as exc:
+            print(f"[GitHub OAuth] Token exchange failed: {exc}")
+            return _oauth_failure("github_failed")
 
-    user_id = _upsert_github_user(gh_user, access_token, email)
-    if not user_id:
-        return _oauth_failure("github_failed")
+        access_token = data.get("access_token")
+        if not access_token:
+            print(f"[GitHub OAuth] No access token returned: {data.get('error')}")
+            return _oauth_failure("github_failed")
 
-    session_token, expires = create_user_session(user_id)
+        validation = validate_github_token(access_token)
+        if not validation.get("ok"):
+            print(f"[GitHub OAuth] Token validation failed: {validation.get('error')}")
+            return _oauth_failure("github_failed")
 
-    # Land on the repositories screen: it shows the linked GitHub identity and
-    # can list the account's repos straight away, so a fresh sign-in never
-    # dead-ends on an empty dashboard.
-    resp = make_response(redirect("/dashboard/repositories?github=connected"))
-    resp.delete_cookie(OAUTH_STATE_COOKIE, path="/")
-    set_session_cookie(resp, session_token, expires, secure=is_https_request())
-    return resp
+        gh_user = validation["user"]
+
+        # GitHub only exposes a public email, so ask for the verified primary one,
+        # then fall back to the stable noreply address to keep the account unique.
+        email = (gh_user.get("email") or "").strip().lower()
+        if not email:
+            email = (get_primary_email(access_token) or "").strip().lower()
+        if not email or "@" not in email:
+            email = f"{gh_user.get('login')}@users.noreply.github.com"
+
+        user_id = _upsert_github_user(gh_user, access_token, email)
+        if not user_id:
+            return _oauth_failure("github_failed")
+
+        session_token, expires = create_user_session(user_id)
+
+        public_app_url = (os.getenv("PUBLIC_APP_URL") or Config.PUBLIC_APP_URL or "").strip().rstrip("/")
+        target_url = f"{public_app_url}/dashboard/repositories?github=connected" if public_app_url else "/dashboard/repositories?github=connected"
+
+        resp = make_response(redirect(target_url))
+        resp.delete_cookie(OAUTH_STATE_COOKIE, path="/")
+        set_session_cookie(resp, session_token, expires, secure=is_https_request())
+        return resp
+    except Exception as exc:
+        import traceback
+        trace = traceback.format_exc()
+        print(f"[OAuth Callback Error] {exc}\n{trace}")
+        return jsonify({
+            "error": "OAuth Callback Error",
+            "details": str(exc),
+            "trace": trace
+        }), 500
 
